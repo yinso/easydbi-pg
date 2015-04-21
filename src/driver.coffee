@@ -6,9 +6,10 @@ loglet = require 'loglet'
 class PostgresDriver extends DBI.Driver
   @pool = false
   @id = 0
-  constructor: (@options) ->
-    super @options
+  constructor: (@key, @options) ->
+    super @key, @options
     @connstr = @makeConnStr @options
+    @type = 'pg'
   makeConnStr: (options) ->
     options
   connect: (cb) ->
@@ -37,11 +38,10 @@ class PostgresDriver extends DBI.Driver
     catch e
       cb e
   _query: (stmt, args, cb) ->
-    loglet.debug "PostgresDriver._query", stmt, args
     @inner.query stmt, args, (err, result) =>
       if err
         cb err
-      else if stmt.match /^select/i
+      else if result.rows instanceof Array and stmt.match /^\s*select/i
         cb null, result.rows
       else
         cb null
@@ -64,19 +64,33 @@ class PostgresDriver extends DBI.Driver
       catch e
         cb e
   begin: (cb) ->
-    @inner.query 'BEGIN', cb
+    @inner.query 'BEGIN', (err, res) ->
+      if err
+        cb err
+      else
+        cb null
   commit: (cb) ->
-    @inner.query 'COMMIT', cb
+    @inner.query 'COMMIT', (err, res) ->
+      if err
+        cb err
+      else
+        cb null
   rollback: (cb) ->
-    @inner.query 'ROLLBACK', cb
+    @inner.query 'ROLLBACK', (err, res) ->
+      if err
+        cb err
+      else
+        cb null
   disconnect: (cb) ->
     try 
+      loglet.log 'easydbi.pg.disconnect'
       @inner.end()
       cb null 
     catch e
       cb e
   close: (cb) ->
     try 
+      loglet.log 'easydbi.pg.close'
       @inner.end()
       cb null 
     catch e

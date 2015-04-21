@@ -5,7 +5,7 @@
 # Installation
 
     npm install easydbi
-    npm install easydbi-postgres
+    npm install easydbi-pg
 
 # Usage
 

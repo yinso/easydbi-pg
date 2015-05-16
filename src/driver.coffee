@@ -28,10 +28,10 @@ class PostgresDriver extends DBI.Driver
     val
   query: (key, args, cb) ->
     loglet.debug "PostgresDriver.query", key, args
-    try 
+    try
       i = 0
       keyGen = () ->
-        i = i + 1 
+        i = i + 1
         "$#{i}"
       [ key, args ] = DBI.queryHelper.arrayify key, args, {key: keyGen}
       @_query key, args, cb
@@ -54,13 +54,13 @@ class PostgresDriver extends DBI.Driver
     else if key == 'rollback'
       @rollback cb
     else
-      try 
+      try
         i = 0
         keyGen = () ->
-          i = i + 1 
+          i = i + 1
           "$#{i}"
         [ key, args ] = DBI.queryHelper.arrayify key, args, {key: keyGen}
-        @_query key, args, cb 
+        @_query key, args, cb
       catch e
         cb e
   begin: (cb) ->
@@ -82,17 +82,17 @@ class PostgresDriver extends DBI.Driver
       else
         cb null
   disconnect: (cb) ->
-    try 
-      loglet.log 'easydbi.pg.disconnect'
+    try
+      #loglet.log 'easydbi.pg.disconnect'
       @inner.end()
-      cb null 
+      cb null
     catch e
       cb e
   close: (cb) ->
-    try 
-      loglet.log 'easydbi.pg.close'
+    try
+      #loglet.log 'easydbi.pg.close'
       @inner.end()
-      cb null 
+      cb null
     catch e
       cb e
 

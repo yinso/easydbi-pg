@@ -1,12 +1,11 @@
 #!/usr/bin/env coffee # -*- coffee-script -*- -p
 DBI = require 'easydbi'
 driver = require '../src/driver'
-funclet = require 'funclet'
-assert = require 'assert'
+{ assert } = require 'chai'
 loglet = require 'loglet'
-async = require 'async'
+Promise = require 'bluebird'
 
-describe 'firebird driver test', () ->
+describe 'pg driver test', () ->
   
   db = null 
   
@@ -42,66 +41,34 @@ describe 'firebird driver test', () ->
       done e
 
   it 'can create/insert/select', (done) ->
-    funclet
-      .start (cb) ->
-        loglet.debug 'isConnected', db.isConnected()
-        db.exec 'insert into test_t values ($c1, $c2)', {c1: 1, c2: 2}, cb
-      .then (cb) ->
-        db.insertTest {c1: 3, c2: 4}, cb
-      .then (cb) ->
-        db.selectTest {}, cb
-      .then (rows, cb) ->
-        try 
-          #assert.deepEqual rows, [{c1: 1, c2: 2}, {c1: 3, c2: 4}]
-          cb null 
-        catch e
-          cb e
-      .catch (err) ->
-        done err
-      .done () ->
+    loglet.debug 'isConnected', db.isConnected()
+    db.execAsync('insert into test_t values ($c1, $c2)', {c1: 1, c2: 2})
+      .then ->
+        db.insertTestAsync {c1: 3, c2: 4}
+      .then ->
+        db.selectTestAsync {}
+      .then (rows) ->
         done null
-  
+      .catch (e) ->
+        done e
+
   it 'can have concurrent connections', (done) ->
-    helper = (count, next) ->
-      conn = null
-      funclet
-        .start (cb) ->
-          DBI.connect 'test1', (err, c) ->
-            if err
-              cb err
-            else
-              conn = c
-              cb null
-        .then (cb) ->
-          conn.insertTest {c1: 2, c2: 4}, cb
-        .then (cb) ->
-          conn.selectTest {}, cb
-        .then (rows, cb) ->
-          conn.commit cb
-        .catch (err) ->
-          conn.disconnect (e) ->
-            loglet.debug 'conn.disconnect'
-            next e
-        .done () ->
-          conn.disconnect (e) -> 
-            loglet.debug 'conn.disconnect'
-            next e
-    list = [1, 2, 3, 4, 5, 6, 7]
-    async.each list, helper, (err) ->
-      loglet.debug 'async.last', err
-      if err
-        done err
-      else
-        funclet
-          .start (cb) ->
-            db.selectTest {}, cb
-          .then (rows, cb) ->
-            try
-              console.log 'rows', rows
-              #assert.equal rows.length, list.length + 2
-              cb null
-            catch e
-              cb e
-          .catch(done)
-          .done(done)
-    
+    helper = (count) ->
+      DBI.connectAsync('test1')
+        .then (conn) ->
+          conn.beginAsync()
+            .then -> 
+              conn.insertTestAsync({c1: 2, c2: 4})
+            .then ->
+              conn.selectTestAsync {}
+            .then (rows) ->
+              conn.commitAsync()
+                .then ->
+                  conn.disconnectAsync()
+                  rows
+    Promise.map([1, 2, 3, 4, 5, 6, 7], helper)
+      .then (allRows) ->
+        console.log 'all rows', allRows
+        done null
+      .catch done
+

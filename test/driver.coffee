@@ -2,7 +2,7 @@
 DBI = require 'easydbi'
 driver = require '../src/driver'
 { assert } = require 'chai'
-loglet = require 'loglet'
+debug = require('debug')('test:driver')
 Promise = require 'bluebird'
 
 describe 'pg driver test', () ->
@@ -41,7 +41,7 @@ describe 'pg driver test', () ->
       done e
 
   it 'can create/insert/select', (done) ->
-    loglet.debug 'isConnected', db.isConnected()
+    debug 'isConnected', db.isConnected()
     db.execAsync('insert into test_t values ($c1, $c2)', {c1: 1, c2: 2})
       .then ->
         db.insertTestAsync {c1: 3, c2: 4}

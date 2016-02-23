@@ -1,7 +1,8 @@
 
 pg = require 'pg'
 DBI = require 'easydbi'
-loglet = require 'loglet'
+debug = require('debug')('easydbi-pg')
+Errorlet = require 'errorlet'
 
 class PostgresDriver extends DBI.Driver
   @pool = false
@@ -13,21 +14,21 @@ class PostgresDriver extends DBI.Driver
   makeConnStr: (options) ->
     options
   connect: (cb) ->
-    loglet.debug "PostgresDriver.connect", @options
+    debug "PostgresDriver.connect", @options
     self = @
     @inner = new pg.Client @connstr
     @inner.connect (err) =>
       if err
         cb err
       else
-        loglet.debug 'PostgresDriver.connect:OK', self.id
+        debug 'PostgresDriver.connect:OK', self.id
         cb null, self
   isConnected: () ->
     val = @inner instanceof pg.Client
-    loglet.debug "PostgresDriver.isConnected", @inner instanceof pg.Client
+    debug "PostgresDriver.isConnected", @inner instanceof pg.Client
     val
   query: (key, args, cb) ->
-    loglet.debug "PostgresDriver.query", key, args
+    debug "PostgresDriver.query", key, args
     try
       i = 0
       keyGen = () ->
@@ -40,13 +41,15 @@ class PostgresDriver extends DBI.Driver
   _query: (stmt, args, cb) ->
     @inner.query stmt, args, (err, result) =>
       if err
+        console.log err.stack
+        debug("PostgresDriver._query:ERROR, %s", err.stack)
         cb err
       else if result.rows instanceof Array and stmt.match /^\s*select/i
         cb null, result.rows
       else
         cb null
   exec: (key, args, cb) ->
-    loglet.debug "PostgresDriver.exec", key, args
+    debug "PostgresDriver.exec", key, args
     if key == 'begin'
       @begin cb
     else if key == 'commit'

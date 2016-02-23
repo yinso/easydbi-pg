@@ -18,9 +18,10 @@
   },
   "dependencies": {
     "bluebird": "^3.3.1",
+    "debug": "^2.2.0",
     "easydbi": "^0.2.4",
+    "errorlet": "^0.2.0",
     "lodash": "^4.5.0",
-    "loglet": "^0.2.0",
     "node-uuid": "^1.4.7",
     "pg": "^4.4.6"
   },

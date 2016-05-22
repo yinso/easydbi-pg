@@ -3,6 +3,9 @@ pg = require 'pg'
 DBI = require 'easydbi'
 debug = require('debug')('easydbi-pg')
 Errorlet = require 'errorlet'
+Promise = require('bluebird')
+
+Promise.promisifyAll pg.Client.prototype
 
 class PostgresDriver extends DBI.Driver
   @pool = false
@@ -11,6 +14,8 @@ class PostgresDriver extends DBI.Driver
     super @key, @options
     @connstr = @makeConnStr @options
     @type = 'pg'
+    @transStack = 0
+    @transStack = []
   makeConnStr: (options) ->
     options
   connect: (cb) ->
@@ -28,7 +33,9 @@ class PostgresDriver extends DBI.Driver
     debug "PostgresDriver.isConnected", @inner instanceof pg.Client
     val
   query: (key, args, cb) ->
-    debug "PostgresDriver.query", key, args
+    if arguments.length == 2
+      cb = args
+      args = {}
     try
       i = 0
       keyGen = () ->
@@ -41,7 +48,6 @@ class PostgresDriver extends DBI.Driver
   _query: (stmt, args, cb) ->
     @inner.query stmt, args, (err, result) =>
       if err
-        console.log err.stack
         debug("PostgresDriver._query:ERROR, %s", err.stack)
         cb err
       else if result.rows instanceof Array and stmt.match /^\s*select/i
@@ -49,6 +55,9 @@ class PostgresDriver extends DBI.Driver
       else
         cb null
   exec: (key, args, cb) ->
+    if arguments.length == 2
+      cb = args
+      args = {}
     debug "PostgresDriver.exec", key, args
     if key == 'begin'
       @begin cb
@@ -66,24 +75,54 @@ class PostgresDriver extends DBI.Driver
         @_query key, args, cb
       catch e
         cb e
+  savePointName: () ->
+    "sp_#{@id}_#{@transStack.length}"
   begin: (cb) ->
-    @inner.query 'BEGIN', (err, res) ->
-      if err
-        cb err
-      else
+    savePoint = null
+    @inner.queryAsync 'begin'
+      .then () =>
+        if @transStack.length > 0
+          savePoint = @savePointName()
+          return @inner.queryAsync "SAVEPOINT #{savePoint}"
+        else
+          return
+      .then () =>
+        @transStack.push savePoint
         cb null
+      .catch (e) =>
+        cb e
   commit: (cb) ->
-    @inner.query 'COMMIT', (err, res) ->
-      if err
-        cb err
+    if @transStack.length == 0
+      return cb new Errorlet({
+        error: 'negative_transcount',
+        method: 'PostgresDriver.commit'
+      })
+    savePoint = @transStack.pop()
+    query =
+      if @transStack.length == 0
+        "commit"
       else
+        "release savepoint #{savePoint}"
+    @inner.queryAsync query
+      .then () ->
         cb null
+      .catch cb
   rollback: (cb) ->
-    @inner.query 'ROLLBACK', (err, res) ->
-      if err
-        cb err
+    if @transStack.length == 0
+      return cb new Errorlet({
+        error: 'negative_transcount',
+        method: 'PostgresDriver.commit'
+      })
+    savePoint = @transStack.pop()
+    query =
+      if @transStack.length == 0
+        "rollback"
       else
+        "rollback to savepoint #{savePoint}"
+    @inner.queryAsync query
+      .then () ->
         cb null
+      .catch cb
   disconnect: (cb) ->
     try
       #loglet.log 'easydbi.pg.disconnect'

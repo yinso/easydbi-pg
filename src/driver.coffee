@@ -32,6 +32,14 @@ class PostgresDriver extends DBI.Driver
     val = @inner instanceof pg.Client
     debug "PostgresDriver.isConnected", @inner instanceof pg.Client
     val
+  normalizeArguments: (args) ->
+    normedArgs = {}
+    for key, arg of args
+      if arg instanceof Object
+        normedArgs[key] = JSON.stringify arg
+      else
+        normedArgs[key] = arg
+    normedArgs
   query: (key, args, cb) ->
     if arguments.length == 2
       cb = args
@@ -41,7 +49,7 @@ class PostgresDriver extends DBI.Driver
       keyGen = () ->
         i = i + 1
         "$#{i}"
-      [ key, args ] = DBI.queryHelper.arrayify key, args, {key: keyGen}
+      [ key, args ] = DBI.queryHelper.arrayify key, @normalizeArguments(args), {key: keyGen}
       @_query key, args, cb
     catch e
       cb e
@@ -71,7 +79,7 @@ class PostgresDriver extends DBI.Driver
         keyGen = () ->
           i = i + 1
           "$#{i}"
-        [ key, args ] = DBI.queryHelper.arrayify key, args, {key: keyGen}
+        [ key, args ] = DBI.queryHelper.arrayify key, @normalizeArguments(args), {key: keyGen}
         @_query key, args, cb
       catch e
         cb e

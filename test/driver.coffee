@@ -126,3 +126,36 @@ describe 'pg driver test', () ->
         done()
       .catch (e) ->
         done(e)
+
+  it 'can handle jsonb correctly', (done) ->
+    phones1 = []
+    phones2 = [
+      {
+        phone: '123-467-8609'
+        phoneType: 'mobile'
+      }
+    ]
+    db.beginAsync()
+      .then () ->
+        db.execAsync 'create table test_json (phones jsonb)'
+      .then () ->
+        db.execAsync 'insert into test_json values ($phones)', phones: phones1
+      .then () ->
+        db.execAsync 'insert into test_json values ($phones)', phones: phones2
+      .then () ->
+        db.queryAsync('select * from test_json')
+          .then (rows) ->
+            assert.equal rows.length, 2
+            assert.deepEqual rows[0], { phones: phones1 }
+            assert.deepEqual rows[1], { phones: phones2 }
+            return
+      .then () ->
+        db.execAsync 'drop table test_json'
+      .then () ->
+        db.commitAsync()
+      .then () ->
+        done()
+      .catch (e) ->
+        db.rollback () ->
+          done e
+

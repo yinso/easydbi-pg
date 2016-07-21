@@ -18,7 +18,7 @@ class PostgresDriver extends DBI.Driver
     @transStack = []
   makeConnStr: (options) ->
     options
-  connect: (cb) ->
+  innerConnect: (cb) ->
     debug "PostgresDriver.connect", @options
     self = @
     @inner = new pg.Client @connstr
@@ -28,7 +28,7 @@ class PostgresDriver extends DBI.Driver
       else
         debug 'PostgresDriver.connect:OK', self.id
         cb null, self
-  isConnected: () ->
+  innerIsConnected: () ->
     val = @inner instanceof pg.Client
     debug "PostgresDriver.isConnected", @inner instanceof pg.Client
     val
@@ -40,10 +40,8 @@ class PostgresDriver extends DBI.Driver
       else
         normedArgs[key] = arg
     normedArgs
-  query: (key, args, cb) ->
-    if arguments.length == 2
-      cb = args
-      args = {}
+  innerQuery: (key, args, cb) ->
+    debug 'PostgresDriver.query', JSON.stringify(key), args
     try
       i = 0
       keyGen = () ->
@@ -62,30 +60,9 @@ class PostgresDriver extends DBI.Driver
         cb null, result.rows
       else
         cb null
-  exec: (key, args, cb) ->
-    if arguments.length == 2
-      cb = args
-      args = {}
-    debug "PostgresDriver.exec", key, args
-    if key == 'begin'
-      @begin cb
-    else if key == 'commit'
-      @commit cb
-    else if key == 'rollback'
-      @rollback cb
-    else
-      try
-        i = 0
-        keyGen = () ->
-          i = i + 1
-          "$#{i}"
-        [ key, args ] = DBI.queryHelper.arrayify key, @normalizeArguments(args), {key: keyGen}
-        @_query key, args, cb
-      catch e
-        cb e
   savePointName: () ->
     "sp_#{@id}_#{@transStack.length}"
-  begin: (cb) ->
+  innerBegin: (cb) ->
     savePoint = null
     @inner.queryAsync 'begin'
       .then () =>
@@ -99,7 +76,7 @@ class PostgresDriver extends DBI.Driver
         cb null
       .catch (e) =>
         cb e
-  commit: (cb) ->
+  innerCommit: (cb) ->
     if @transStack.length == 0
       return cb new Errorlet({
         error: 'negative_transcount',
@@ -115,7 +92,7 @@ class PostgresDriver extends DBI.Driver
       .then () ->
         cb null
       .catch cb
-  rollback: (cb) ->
+  innerRollback: (cb) ->
     if @transStack.length == 0
       return cb new Errorlet({
         error: 'negative_transcount',
@@ -131,20 +108,20 @@ class PostgresDriver extends DBI.Driver
       .then () ->
         cb null
       .catch cb
-  disconnect: (cb) ->
-    try
-      #loglet.log 'easydbi.pg.disconnect'
-      @inner.end()
-      cb null
-    catch e
-      cb e
-  close: (cb) ->
-    try
-      #loglet.log 'easydbi.pg.close'
-      @inner.end()
-      cb null
-    catch e
-      cb e
+  innerDisconnect: (cb) ->
+      try
+        #loglet.log 'easydbi.pg.disconnect'
+        @inner.end()
+        cb null
+      catch e
+        cb e
+  innerClose: (cb) ->
+      try
+        #loglet.log 'easydbi.pg.close'
+        @inner.end()
+        cb null
+      catch e
+        cb e
 
 DBI.register 'pg', PostgresDriver
 

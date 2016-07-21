@@ -4,6 +4,7 @@ driver = require '../src/driver'
 { assert } = require 'chai'
 debug = require('debug')('test:driver')
 Promise = require 'bluebird'
+AppError = require 'errorlet'
 
 describe 'pg driver test', () ->
 
@@ -28,20 +29,19 @@ describe 'pg driver test', () ->
       done e
 
   it 'can connect', (done) ->
-    try
-      DBI.connect 'test1', (err, conn) ->
-        conn.isConnected()
-        if err
-          done err
-        else
-          db = conn
-          done null
-    catch e
-      done e
+    DBI.connect 'test1'
+      .then (conn) ->
+        assert.equal conn.isConnected(), true
+        assert.throws ->
+          conn.isConnected(true)
+        db = conn
+      .then () ->
+        done null
+      .catch done
 
   it 'can create/insert/select', (done) ->
     debug 'isConnected', db.isConnected()
-    db.execAsync('insert into test_t values ($c1, $c2)', {c1: 1, c2: 2})
+    db.exec('insert into test_t values ($c1, $c2)', {c1: 1, c2: 2})
       .then ->
         db.insertTestAsync {c1: 3, c2: 4}
       .then ->
@@ -53,17 +53,17 @@ describe 'pg driver test', () ->
 
   it 'can have concurrent connections', (done) ->
     helper = (count) ->
-      DBI.connectAsync('test1')
+      DBI.connect('test1')
         .then (conn) ->
-          conn.beginAsync()
+          conn.begin()
             .then ->
               conn.insertTestAsync({c1: conn.id, c2: 4})
             .then ->
               conn.selectTestAsync {}
             .then (rows) ->
-              conn.commitAsync()
+              conn.commit()
                 .then ->
-                  conn.disconnectAsync()
+                  conn.disconnect()
                   rows
     Promise.map([1, 2, 3, 4, 5, 6, 7], helper)
       .then (allRows) ->
@@ -73,13 +73,14 @@ describe 'pg driver test', () ->
 
   it 'can handle nested transactions (fully unroll)', (done) ->
     inner = (cb) ->
-      db.beginAsync()
+      db.begin()
         .then ->
           db.insertTestAsync {c1: 10, c2: 11}
         .then ->
-          db.commit () ->
-            console.log("INNER COMMIT")
-            cb null
+          db.commit()
+        .then () ->
+          console.log("INNER COMMIT")
+          cb null
         .catch (e) ->
           console.log("TRANS ERROR #{e}")
           db.rollback () ->
@@ -127,6 +128,19 @@ describe 'pg driver test', () ->
       .catch (e) ->
         done(e)
 
+  it 'test schema issues', (done) ->
+    try
+      db.query {foo: 1, bar: 2}
+        .then (recs) ->
+          done new AppError
+            error: 'UnexpectedSuccess'
+            message: 'should have failed instead'
+        .catch (e) ->
+          console.error 'Expected error', e.stack
+          done null
+    catch e
+      done e
+
   it 'can handle jsonb correctly', (done) ->
     phones1 = []
     phones2 = [
@@ -158,4 +172,5 @@ describe 'pg driver test', () ->
       .catch (e) ->
         db.rollback () ->
           done e
+
 

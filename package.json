@@ -7,27 +7,32 @@
     "type": "git",
     "url": "git://github.com/yinso/easydbi-pg.git"
   },
-  "main": "./lib/driver",
+  "main": "./lib/postgres",
   "license": "BSD-3-Clause",
   "engines": {
     "node": ">= 0.8.4"
   },
   "scripts": {
-    "test": "./node_modules/.bin/mocha --compilers coffee:coffee-script/register --recursive",
-    "prepublish": "make"
+    "test": "./node_modules/.bin/mocha"
   },
   "dependencies": {
+    "@types/bluebird": "^3.5.26",
+    "@types/debug": "^4.1.2",
+    "@types/pg": "^7.4.13",
+    "@types/uuid": "^3.4.4",
     "bluebird": "^3.3.1",
     "debug": "^2.2.0",
-    "easydbi": "^0.2.8",
-    "errorlet": "^0.2.0",
-    "lodash": "^4.5.0",
-    "node-uuid": "^1.4.7",
-    "pg": "^4.4.6"
+    "easydbi": "git+https://git@github.com/yinso/easydbi.git#master",
+    "pg": "^7.8.2",
+    "uuid": "^3.3.2"
   },
   "devDependencies": {
+    "@types/chai": "^4.1.7",
+    "@types/mocha": "^5.2.6",
     "chai": "^3.5.0",
-    "coffee-script": "^1.10.0",
-    "mocha": "^2.4.5"
+    "mocha": "^2.4.5",
+    "mocha-typescript": "^1.1.17",
+    "source-map-support": "^0.5.10",
+    "typescript": "^3.0.3"
   }
 }
